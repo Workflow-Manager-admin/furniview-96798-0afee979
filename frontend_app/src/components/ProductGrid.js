@@ -3,12 +3,34 @@ import { useProducts } from '../context/ProductsContext';
 
 // PUBLIC_INTERFACE
 function ProductGrid({ onProductClick }) {
-  const { filteredProducts } = useProducts();
+  const { filteredProducts, loading, connectionError } = useProducts();
+
+  if (loading) {
+    return (
+      <div style={{ padding: '2rem', color: '#666', textAlign: 'center' }}>
+        Loading products...
+      </div>
+    );
+  }
+
+  if (connectionError) {
+    return (
+      <div style={{ padding: '2rem', color: '#e20640', textAlign: 'center' }}>
+        <div style={{ marginBottom: '1rem' }}>❌ {connectionError}</div>
+        <div style={{ fontSize: '0.9rem', color: '#666' }}>
+          Please check your internet connection and try refreshing the page.
+        </div>
+      </div>
+    );
+  }
 
   if (filteredProducts.length === 0) {
     return (
       <div style={{ padding: '2rem', color: '#666', textAlign: 'center' }}>
-        No products match your selection.
+        <div style={{ marginBottom: '1rem' }}>No products match your selection.</div>
+        <div style={{ fontSize: '0.9rem' }}>
+          Try adjusting your search terms or category filter.
+        </div>
       </div>
     );
   }

@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { fetchProducts, fetchCategories } from '../utils/supabaseClient';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { fetchProducts, fetchCategories, testConnection } from '../utils/supabaseClient';
 
 // PUBLIC_INTERFACE
 const ProductsContext = createContext(undefined);
@@ -11,26 +11,57 @@ const ProductsContext = createContext(undefined);
 export function ProductsProvider({ children }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(null);
   // Filter state
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
 
-  // Load categories from Supabase
+  // Test connection and load data
   useEffect(() => {
-    fetchCategories().then(cats => {
-      if (!cats || cats.length === 0) {
-        setCategories(['All']);
-      } else {
-        setCategories(['All', ...cats]);
+    async function loadData() {
+      setLoading(true);
+      setConnectionError(null);
+      
+      // Test connection first
+      const connectionTest = await testConnection();
+      if (!connectionTest.success) {
+        console.error('Supabase connection failed:', connectionTest.error);
+        setConnectionError('Failed to connect to database. Please check your internet connection.');
+        setLoading(false);
+        return;
       }
-    });
-  }, []);
-
-  // Load products from Supabase
-  useEffect(() => {
-    fetchProducts().then(products => {
-      setProducts(products || []);
-    });
+      
+      // Load categories
+      try {
+        const cats = await fetchCategories();
+        if (!cats || cats.length === 0) {
+          setCategories(['All']);
+        } else {
+          setCategories(['All', ...cats]);
+        }
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+        setCategories(['All']);
+      }
+      
+      // Load products
+      try {
+        const productsData = await fetchProducts();
+        setProducts(productsData || []);
+        
+        if (!productsData || productsData.length === 0) {
+          console.warn('No products found in database');
+        }
+      } catch (err) {
+        console.error('Failed to load products:', err);
+        setProducts([]);
+      }
+      
+      setLoading(false);
+    }
+    
+    loadData();
   }, []);
 
   // PUBLIC_INTERFACE
@@ -51,7 +82,14 @@ export function ProductsProvider({ children }) {
     search,
     setSearch,
     filteredProducts,
-    reloadProducts: async () => setProducts(await fetchProducts())
+    loading,
+    connectionError,
+    reloadProducts: async () => {
+      setLoading(true);
+      const productsData = await fetchProducts();
+      setProducts(productsData || []);
+      setLoading(false);
+    }
   };
 
   return (
